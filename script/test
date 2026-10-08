@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+root=$PWD
+fixture=$(mktemp -d)
+trap 'rm -rf "$fixture"' EXIT
+mkdir -p "$fixture/bin" "$fixture/package with spaces/bin" "$fixture/package with spaces/lib"
+cp bin/thingy "$fixture/package with spaces/bin/"
+cp lib/things_bridge.applescript "$fixture/package with spaces/lib/"
+cp VERSION "$fixture/package with spaces/"
+cat > "$fixture/bin/osascript" <<'FAKE'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$1" == "$EXPECTED_BRIDGE" ]]
+shift
+[[ "$#" == 6 ]]
+[[ "$1" == apply && "$2" == 'task id' && "$3" == standalone && "$4" == '' && "$5" == '2026-10-09' && "$6" == '' ]]
+printf '%s\n' '{"id":"task id"}'
+exit "${FAKE_EXIT:-0}"
+FAKE
+chmod +x "$fixture/bin/osascript"
+export PATH="$fixture/bin:$PATH"
+export EXPECTED_BRIDGE="$fixture/package with spaces/lib/things_bridge.applescript"
+cli="$fixture/package with spaces/bin/thingy"
+[[ "$("$cli" --version)" == "thingy $(cat "$root/VERSION")" ]]
+"$cli" help > "$fixture/help"
+[[ "$("$cli" apply 'task id' standalone '' 2026-10-09 '')" == '{"id":"task id"}' ]]
+status=0
+FAKE_EXIT=7 "$cli" apply 'task id' standalone '' 2026-10-09 '' > /dev/null || status=$?
+[[ "$status" == 7 ]]
+printf '%s\n' 'Passed: help/version, package path, exact arguments, JSON output, runner error propagation.'

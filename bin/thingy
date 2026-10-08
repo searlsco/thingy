@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Things 3 through its supported AppleScript interface. Data commands print JSON.
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BRIDGE="$ROOT/lib/things_bridge.applescript"
+
+usage() {
+  cat <<'USAGE'
+usage: thingy COMMAND [ARGS]
+
+Read:
+  thingy inbox                     to-dos in the Inbox, in Things' order
+  thingy today                     to-dos in Today, in Things' order
+  thingy search QUERY              open to-dos matching title or notes (case-insensitive)
+  thingy containers                areas and open projects (ids for destinations)
+  thingy show ID                   one to-do, including its list ("bucket")
+
+Change (by exact id; run `show` first and check nothing moved):
+  thingy apply ID KIND DEST_ID WHEN DEADLINE
+      KIND: project | area | standalone (DEST_ID "" for standalone)
+      WHEN: today | inbox | anytime | someday | YYYY-MM-DD
+      DEADLINE: YYYY-MM-DD, none (clear), or "" (keep)
+  thingy complete ID
+  thingy cancel ID
+  thingy append-notes ID TEXT
+  thingy create TITLE NOTES KIND DEST_ID WHEN
+  thingy create-project TITLE NOTES AREA_ID
+
+  thingy create-empty TITLE
+  thingy configure-created ID NOTES KIND DEST_ID WHEN
+      Two-step creation: save the new id before configuring it.
+
+  thingy --version
+
+Requires Things 3 and permission to automate it. Never access its private database.
+USAGE
+}
+
+case "${1:-}" in
+  --version | version) printf "thingy %s\n" "$(cat "$ROOT/VERSION")"; exit 0 ;;
+  "" | -h | --help | help) usage; exit 0 ;;
+esac
+exec osascript "$BRIDGE" "$@"
