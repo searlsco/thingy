@@ -129,13 +129,14 @@ on searchJson(queryText)
 end searchJson
 
 on containersJson()
-	-- Fetch properties in batches so a large project list needs fewer Apple events.
+	-- Fetch unfiltered properties once. Repeating a whose filter makes Things
+	-- repeatedly resolve project objects; filter the returned statuses locally.
 	tell application "Things3"
 		set areaIds to id of every area
 		set areaNames to name of every area
-		set projectIds to id of (every project whose status is open)
-		set projectNames to name of (every project whose status is open)
-		set projectAreas to area of (every project whose status is open)
+		set projectIds to id of every project
+		set projectNames to name of every project
+		set projectStatuses to status of every project
 	end tell
 
 	set resultJson to "{\"areas\":["
@@ -145,20 +146,31 @@ on containersJson()
 	end repeat
 
 	set resultJson to resultJson & "],\"projects\":["
+	set needsComma to false
 	repeat with projectIndex from 1 to count projectIds
-		set parentAreaJson to "null"
-		set parentArea to item projectIndex of projectAreas
-		if parentArea is not missing value then
-			tell application "Things3" to set parentId to id of parentArea
-			repeat with areaIndex from 1 to count areaIds
-				if item areaIndex of areaIds is parentId then
-					set parentAreaJson to "{\"id\":" & my jsonString(parentId) & ",\"name\":" & my jsonString(item areaIndex of areaNames) & "}"
-					exit repeat
+		if (item projectIndex of projectStatuses as text) is "open" then
+			set parentAreaJson to "null"
+			-- Bulk area getters omit missing parents, so resolve each by its exact id.
+			tell application "Things3"
+				set parentArea to area of project id (item projectIndex of projectIds)
+				if parentArea is not missing value then
+					set parentId to id of parentArea
+				else
+					set parentId to missing value
 				end if
-			end repeat
+			end tell
+			if parentId is not missing value then
+				repeat with areaIndex from 1 to count areaIds
+					if item areaIndex of areaIds is parentId then
+						set parentAreaJson to "{\"id\":" & my jsonString(parentId) & ",\"name\":" & my jsonString(item areaIndex of areaNames) & "}"
+						exit repeat
+					end if
+				end repeat
+			end if
+			if needsComma then set resultJson to resultJson & ","
+			set resultJson to resultJson & "{\"id\":" & my jsonString(item projectIndex of projectIds) & ",\"name\":" & my jsonString(item projectIndex of projectNames) & ",\"area\":" & parentAreaJson & "}"
+			set needsComma to true
 		end if
-		if projectIndex is greater than 1 then set resultJson to resultJson & ","
-		set resultJson to resultJson & "{\"id\":" & my jsonString(item projectIndex of projectIds) & ",\"name\":" & my jsonString(item projectIndex of projectNames) & ",\"area\":" & parentAreaJson & "}"
 	end repeat
 	return resultJson & "]}"
 end containersJson
