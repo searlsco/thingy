@@ -16,6 +16,13 @@ on jsonString(aValue)
 	set escapedText to my replaceText(return, "\\n", escapedText)
 	set escapedText to my replaceText(linefeed, "\\n", escapedText)
 	set escapedText to my replaceText(tab, "\\t", escapedText)
+	set hexDigits to "0123456789abcdef"
+	repeat with controlCode from 0 to 31
+		if controlCode is not 9 and controlCode is not 10 and controlCode is not 13 then
+			set hexByte to character ((controlCode div 16) + 1) of hexDigits & character ((controlCode mod 16) + 1) of hexDigits
+			set escapedText to my replaceText(character id controlCode, "\\u00" & hexByte, escapedText)
+		end if
+	end repeat
 	return quote & escapedText & quote
 end jsonString
 
@@ -42,6 +49,7 @@ on parseIsoDate(dateText)
 	if (count dateParts) is not 3 then error "date must be YYYY-MM-DD: " & dateText
 
 	set parsedDate to current date
+	set day of parsedDate to 1
 	set year of parsedDate to item 1 of dateParts as integer
 	set month of parsedDate to item 2 of dateParts as integer
 	set day of parsedDate to item 3 of dateParts as integer
@@ -182,14 +190,40 @@ on showJson(taskId)
 	return my taskJson(taskRef, "")
 end showJson
 
+-- Resolve destinations and dates before any mutation, including insertion.
+on validateChange(destinationKind, destinationId, whenValue, deadlineValue)
+	set destinationRef to missing value
+	tell application "Things3"
+		if destinationKind is "project" then
+			set destinationRef to project id destinationId
+			get id of destinationRef
+		else if destinationKind is "area" then
+			set destinationRef to area id destinationId
+			get id of destinationRef
+		else if destinationKind is not "standalone" then
+			error "destination kind must be project, area, or standalone"
+		end if
+	end tell
+	set scheduledDate to missing value
+	if whenValue is "today" then
+		set scheduledDate to current date
+	else if whenValue is not "inbox" and whenValue is not "anytime" and whenValue is not "someday" then
+		set scheduledDate to my parseIsoDate(whenValue)
+	end if
+	set deadlineDate to missing value
+	if deadlineValue is not "" and deadlineValue is not "none" then set deadlineDate to my parseIsoDate(deadlineValue)
+	return {destinationRef, scheduledDate, deadlineDate}
+end validateChange
+
 on applyChange(taskId, destinationKind, destinationId, whenValue, deadlineValue)
+	set validated to my validateChange(destinationKind, destinationId, whenValue, deadlineValue)
 	tell application "Things3"
 		set taskRef to to do id taskId
 
 		if destinationKind is "project" then
-			set project of taskRef to project id destinationId
+			set project of taskRef to item 1 of validated
 		else if destinationKind is "area" then
-			set area of taskRef to area id destinationId
+			set area of taskRef to item 1 of validated
 		else if destinationKind is "standalone" then
 			try
 				delete project of taskRef
@@ -202,7 +236,7 @@ on applyChange(taskId, destinationKind, destinationId, whenValue, deadlineValue)
 		end if
 
 		if whenValue is "today" then
-			schedule taskRef for current date
+			schedule taskRef for item 2 of validated
 		else if whenValue is "inbox" then
 			move taskRef to list "Inbox"
 		else if whenValue is "anytime" then
@@ -210,13 +244,13 @@ on applyChange(taskId, destinationKind, destinationId, whenValue, deadlineValue)
 		else if whenValue is "someday" then
 			move taskRef to list "Someday"
 		else
-			schedule taskRef for my parseIsoDate(whenValue)
+			schedule taskRef for item 2 of validated
 		end if
 
 		if deadlineValue is "none" then
 			set due date of taskRef to ""
 		else if deadlineValue is not "" then
-			set due date of taskRef to my parseIsoDate(deadlineValue)
+			set due date of taskRef to item 3 of validated
 		end if
 	end tell
 
@@ -254,18 +288,19 @@ on createEmptyTask(taskTitle)
 end createEmptyTask
 
 on configureCreatedTask(taskId, taskNotes, destinationKind, destinationId, whenValue)
+	set validated to my validateChange(destinationKind, destinationId, whenValue, "")
 	tell application "Things3"
 		set taskRef to to do id taskId
 		set notes of taskRef to taskNotes
 		if destinationKind is "project" then
-			set project of taskRef to project id destinationId
+			set project of taskRef to item 1 of validated
 		else if destinationKind is "area" then
-			set area of taskRef to area id destinationId
+			set area of taskRef to item 1 of validated
 		else if destinationKind is not "standalone" then
 			error "destination kind must be project, area, or standalone"
 		end if
 		if whenValue is "today" then
-			schedule taskRef for current date
+			schedule taskRef for item 2 of validated
 		else if whenValue is "inbox" then
 			move taskRef to list "Inbox"
 		else if whenValue is "anytime" then
@@ -273,13 +308,14 @@ on configureCreatedTask(taskId, taskNotes, destinationKind, destinationId, whenV
 		else if whenValue is "someday" then
 			move taskRef to list "Someday"
 		else
-			schedule taskRef for my parseIsoDate(whenValue)
+			schedule taskRef for item 2 of validated
 		end if
 	end tell
 	return "{\"id\":" & my jsonString(taskId) & "}"
 end configureCreatedTask
 
 on createTask(taskTitle, taskNotes, destinationKind, destinationId, whenValue)
+	my validateChange(destinationKind, destinationId, whenValue, "")
 	tell application "Things3"
 		set taskRef to make new to do with properties {name:taskTitle}
 		set newId to id of taskRef
@@ -289,10 +325,15 @@ on createTask(taskTitle, taskNotes, destinationKind, destinationId, whenValue)
 end createTask
 
 on createProject(projectTitle, projectNotes, areaId)
+	set parentRef to missing value
 	tell application "Things3"
+		if areaId is not "" then
+			set parentRef to area id areaId
+			get id of parentRef
+		end if
 		set projectRef to make new project with properties {name:projectTitle, notes:projectNotes}
-		if areaId is not "" then set area of projectRef to area id areaId
-		return "{\"id\":\"" & (id of projectRef) & "\",\"name\":\"" & (name of projectRef) & "\"}"
+		if areaId is not "" then set area of projectRef to parentRef
+		return "{\"id\":" & my jsonString(id of projectRef) & ",\"name\":" & my jsonString(name of projectRef) & "}"
 	end tell
 end createProject
 

@@ -56,7 +56,8 @@ These commands can run in a nightly update job. Updating needs no reboot.
 
 ## Development and releases
 
-Run `script/test` for CLI checks using a fake AppleScript runner, and
+Run `script/test` for CLI checks using a fake AppleScript runner and pure
+JSON/date handler checks (Python 3 required), and
 `osacompile -o /tmp/thingy.scpt lib/things_bridge.applescript` on a Mac with
 Things installed to check AppleScript compilation. Live read verification can
 use `bin/thingy containers`; tests do not change real tasks.
