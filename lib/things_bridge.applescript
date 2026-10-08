@@ -129,39 +129,36 @@ on searchJson(queryText)
 end searchJson
 
 on containersJson()
-	set resultJson to "{\"areas\":["
-	set needsComma to false
+	-- Fetch properties in batches so a large project list needs fewer Apple events.
 	tell application "Things3"
-		set areaItems to every area
+		set areaIds to id of every area
+		set areaNames to name of every area
+		set projectIds to id of (every project whose status is open)
+		set projectNames to name of (every project whose status is open)
+		set projectAreas to area of (every project whose status is open)
 	end tell
-	repeat with areaRef in areaItems
-		tell application "Things3"
-			set areaId to id of areaRef
-			set areaName to name of areaRef
-		end tell
-		if needsComma then set resultJson to resultJson & ","
-		set resultJson to resultJson & "{\"id\":" & my jsonString(areaId) & ",\"name\":" & my jsonString(areaName) & "}"
-		set needsComma to true
+
+	set resultJson to "{\"areas\":["
+	repeat with areaIndex from 1 to count areaIds
+		if areaIndex is greater than 1 then set resultJson to resultJson & ","
+		set resultJson to resultJson & "{\"id\":" & my jsonString(item areaIndex of areaIds) & ",\"name\":" & my jsonString(item areaIndex of areaNames) & "}"
 	end repeat
 
 	set resultJson to resultJson & "],\"projects\":["
-	set needsComma to false
-	tell application "Things3"
-		set projectItems to every project whose status is open
-	end tell
-	repeat with projectRef in projectItems
-		tell application "Things3"
-			set projectId to id of projectRef
-			set projectName to name of projectRef
-			set parentAreaJson to "null"
-			try
-				set parentArea to area of projectRef
-				if parentArea is not missing value then set parentAreaJson to "{\"id\":" & my jsonString(id of parentArea) & ",\"name\":" & my jsonString(name of parentArea) & "}"
-			end try
-		end tell
-		if needsComma then set resultJson to resultJson & ","
-		set resultJson to resultJson & "{\"id\":" & my jsonString(projectId) & ",\"name\":" & my jsonString(projectName) & ",\"area\":" & parentAreaJson & "}"
-		set needsComma to true
+	repeat with projectIndex from 1 to count projectIds
+		set parentAreaJson to "null"
+		set parentArea to item projectIndex of projectAreas
+		if parentArea is not missing value then
+			tell application "Things3" to set parentId to id of parentArea
+			repeat with areaIndex from 1 to count areaIds
+				if item areaIndex of areaIds is parentId then
+					set parentAreaJson to "{\"id\":" & my jsonString(parentId) & ",\"name\":" & my jsonString(item areaIndex of areaNames) & "}"
+					exit repeat
+				end if
+			end repeat
+		end if
+		if projectIndex is greater than 1 then set resultJson to resultJson & ","
+		set resultJson to resultJson & "{\"id\":" & my jsonString(item projectIndex of projectIds) & ",\"name\":" & my jsonString(item projectIndex of projectNames) & ",\"area\":" & parentAreaJson & "}"
 	end repeat
 	return resultJson & "]}"
 end containersJson
