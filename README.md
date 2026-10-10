@@ -1,7 +1,7 @@
 # Thingy
 
 A command-line interface to Things 3 on macOS. Data commands print JSON and use
-Things' supported AppleScript interface, never its private database.
+Things' supported AppleScript interface and URL scheme, never its private database.
 
 ## Install
 
@@ -20,10 +20,13 @@ in the signed-in user's session.
 ```text
 thingy inbox
 thingy today
+thingy project ID
+thingy selected
 thingy search QUERY
 thingy containers
 thingy show ID
 thingy apply ID KIND DEST_ID WHEN DEADLINE
+thingy move-heading ID PROJECT_ID HEADING
 thingy complete ID
 thingy cancel ID
 thingy append-notes ID TEXT
@@ -44,6 +47,23 @@ commands return JSON; `create-empty` and `configure-created` return the id,
 which can be verified with `show`. The two-step creation commands let a caller
 save the new id before configuring the task, so it can retry configuration
 without creating duplicates.
+
+`project` reads open tasks by exact project id. `selected` reads the tasks
+currently selected in the Things UI, including a selected range. Neither
+command includes heading membership: Things' supported AppleScript interface
+does not expose headings.
+
+`move-heading` uses the [Things URL scheme](https://culturedcode.com/things/support/articles/2803573/)
+to move a task to an existing heading title in an exact project. Enable Things
+URLs in Things Settings → General and obtain the token under Manage. Provide
+it through the `THINGY_AUTH_TOKEN` environment variable. The token is never
+passed in process arguments or printed by Thingy.
+
+The command returns a JSON submission receipt with `submitted: true`, not a
+verified placement. URL handling is asynchronous; invalid authorization can
+be rejected by Things, and a missing heading is silently ignored. Verify the
+heading and result in the Things UI. Heading creation and heading reads are
+not supported by these commands.
 
 ## Update
 

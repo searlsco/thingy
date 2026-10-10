@@ -29,6 +29,7 @@ repeat with dateText in {"2026-02-29", "2026-04-31", "2026-13-01", "2026-00-01",
     end try
     if not rejected then error "accepted invalid date: " & dateText
 end repeat
+set valuesJson to valuesJson & "," & my jsonString(my headingUrl("task & id", "project? id", "News + café/日本", "secret&?=token"))
 return valuesJson & "]"
 '''
 result = subprocess.run(['/usr/bin/osascript', '-'], input=source + checks,
@@ -37,5 +38,10 @@ if result.returncode:
     raise RuntimeError(result.stderr)
 values = json.loads(result.stdout)
 assert values[0] == 'Quotes " slash \\' + '\n\n\t' + ''.join('\n' if c == 13 else chr(c) for c in range(32))
-assert values[1:] == ['2026-02-28', '2026-04-30', '2028-02-29', '2026-12-01']
+assert values[1:5] == ['2026-02-28', '2026-04-30', '2028-02-29', '2026-12-01']
+from urllib.parse import parse_qs, urlsplit
+heading_url = urlsplit(values[5])
+assert heading_url.scheme == 'things' and heading_url.path == '/update'
+assert parse_qs(heading_url.query) == {'id': ['task & id'], 'list-id': ['project? id'], 'heading': ['News + café/日本'], 'auth-token': ['secret&?=token']}
+print('Passed: URL parameter isolation and Unicode encoding.')
 print('Passed: JSON control-character round trip, month-boundary dates, invalid dates.')

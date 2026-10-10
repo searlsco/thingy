@@ -1,7 +1,7 @@
 # Thingy
 
 Thingy is a macOS CLI for Things 3. Keep commands and JSON compatible with the
-existing interface. Use only the supported AppleScript interface; never read
+existing interface. Use only the supported AppleScript interface and Things URL scheme; never read
 or write Things' private database. Address existing tasks by exact id.
 
 The CLI is `bin/thingy`, its bridge is `lib/things_bridge.applescript`, and

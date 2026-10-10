@@ -4,6 +4,7 @@ cd "$(dirname "$0")/.."
 root=$PWD
 python3 test/bridge.py
 python3 test/prevalidation.py
+python3 test/heading.py
 fixture=$(mktemp -d)
 trap 'rm -rf "$fixture"' EXIT
 mkdir -p "$fixture/bin" "$fixture/package with spaces/bin" "$fixture/package with spaces/lib"
@@ -15,6 +16,11 @@ cat > "$fixture/bin/osascript" <<'FAKE'
 set -euo pipefail
 [[ "$1" == "$EXPECTED_BRIDGE" ]]
 shift
+case "$1" in
+  project) [[ "$#" == 2 && "$2" == 'project id' ]]; printf '%s\n' '[]'; exit 0 ;;
+  selected) [[ "$#" == 1 ]]; printf '%s\n' '[]'; exit 0 ;;
+  move-heading) [[ "$#" == 4 && "$2" == 'task id' && "$3" == 'project id' && "$4" == 'News & café' ]]; printf '%s\n' '{"submitted":true}'; exit 0 ;;
+esac
 [[ "$#" == 6 ]]
 [[ "$1" == apply && "$2" == 'task id' && "$3" == standalone && "$4" == '' && "$5" == '2026-10-09' && "$6" == '' ]]
 printf '%s\n' '{"id":"task id"}'
@@ -27,6 +33,9 @@ cli="$fixture/package with spaces/bin/thingy"
 [[ "$("$cli" --version)" == "thingy $(cat "$root/VERSION")" ]]
 "$cli" help > "$fixture/help"
 [[ "$("$cli" apply 'task id' standalone '' 2026-10-09 '')" == '{"id":"task id"}' ]]
+[[ "$("$cli" project 'project id')" == '[]' ]]
+[[ "$("$cli" selected)" == '[]' ]]
+[[ "$(THINGY_AUTH_TOKEN='not-an-argument' "$cli" move-heading 'task id' 'project id' 'News & café')" == '{"submitted":true}' ]]
 status=0
 FAKE_EXIT=7 "$cli" apply 'task id' standalone '' 2026-10-09 '' > /dev/null || status=$?
 [[ "$status" == 7 ]]

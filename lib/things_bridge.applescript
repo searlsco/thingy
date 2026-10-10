@@ -1,3 +1,6 @@
+use framework "Foundation"
+use scripting additions
+
 on replaceText(findText, replacementText, sourceText)
 	set oldDelimiters to AppleScript's text item delimiters
 	set AppleScript's text item delimiters to findText
@@ -25,6 +28,17 @@ on jsonString(aValue)
 	end repeat
 	return quote & escapedText & quote
 end jsonString
+
+-- Encode each value separately so delimiters cannot introduce URL parameters.
+on urlValue(valueText)
+	set allowedCharacters to current application's NSCharacterSet's characterSetWithCharactersInString:"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
+	set nsText to current application's NSString's stringWithString:(valueText as text)
+	return (nsText's stringByAddingPercentEncodingWithAllowedCharacters:allowedCharacters) as text
+end urlValue
+
+on headingUrl(taskId, projectId, headingTitle, authToken)
+	return "things:///update?id=" & my urlValue(taskId) & "&list-id=" & my urlValue(projectId) & "&heading=" & my urlValue(headingTitle) & "&auth-token=" & my urlValue(authToken)
+end headingUrl
 
 on pad2(aNumber)
 	set numberText to aNumber as integer as text
@@ -118,6 +132,52 @@ on listJson(listName)
 	end repeat
 	return resultJson & "]"
 end listJson
+
+on tasksJson(taskRefs)
+	set resultJson to "["
+	set needsComma to false
+	repeat with taskRef in taskRefs
+		if needsComma then set resultJson to resultJson & ","
+		set resultJson to resultJson & my taskJson(taskRef, "")
+		set needsComma to true
+	end repeat
+	return resultJson & "]"
+end tasksJson
+
+on projectJson(projectId)
+	tell application "Things3"
+		set projectRef to project id projectId
+		get id of projectRef
+		set projectTasks to to dos of projectRef whose status is open
+	end tell
+	return my tasksJson(projectTasks)
+end projectJson
+
+on selectedJson()
+	tell application "Things3"
+		set selectedTasks to selected to dos
+	end tell
+	return my tasksJson(selectedTasks)
+end selectedJson
+
+on moveHeading(taskId, projectId, headingTitle)
+	if taskId is "" or projectId is "" or headingTitle is "" then error "task id, project id, and heading must not be empty"
+	if (count headingTitle) is greater than 4000 then error "heading must not exceed 4000 characters"
+	set authToken to system attribute "THINGY_AUTH_TOKEN"
+	if authToken is "" then error "move-heading requires THINGY_AUTH_TOKEN from Things URL settings"
+	tell application "Things3"
+		get id of to do id taskId
+		get id of project id projectId
+	end tell
+	-- Keep the token inside this process, never in shell commands or errors.
+	try
+		open location my headingUrl(taskId, projectId, headingTitle, authToken)
+	on error
+		error "could not submit heading move to Things"
+	end try
+	-- URL handling is asynchronous and the public interfaces cannot read headings.
+	return "{\"id\":" & my jsonString(taskId) & ",\"projectId\":" & my jsonString(projectId) & ",\"heading\":" & my jsonString(headingTitle) & ",\"submitted\":true}"
+end moveHeading
 
 on searchJson(queryText)
 	if queryText is "" then error "search query must not be empty"
@@ -345,12 +405,21 @@ on cancelTask(taskId)
 end cancelTask
 
 on run argv
-	if (count argv) is 0 then error "usage: thingy inbox|today|search|containers|show|apply|complete|append-notes|create|create-empty|configure-created|create-project|cancel"
+	if (count argv) is 0 then error "usage: thingy inbox|today|project|selected|search|containers|show|move-heading|apply|complete|append-notes|create|create-empty|configure-created|create-project|cancel"
 	set commandName to item 1 of argv
 	if commandName is "inbox" then
 		return my listJson("Inbox")
 	else if commandName is "today" then
 		return my listJson("Today")
+	else if commandName is "project" then
+		if (count argv) is not 2 then error "usage: project PROJECT_ID"
+		return my projectJson(item 2 of argv)
+	else if commandName is "selected" then
+		if (count argv) is not 1 then error "usage: selected"
+		return my selectedJson()
+	else if commandName is "move-heading" then
+		if (count argv) is not 4 then error "usage: move-heading ITEM_ID PROJECT_ID HEADING"
+		return my moveHeading(item 2 of argv, item 3 of argv, item 4 of argv)
 	else if commandName is "search" then
 		if (count argv) is not 2 then error "usage: search QUERY"
 		return my searchJson(item 2 of argv)

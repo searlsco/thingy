@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Things 3 through its supported AppleScript interface. Data commands print JSON.
+# Things 3 through its supported AppleScript and URL interfaces. Data commands print JSON.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BRIDGE="$ROOT/lib/things_bridge.applescript"
@@ -11,6 +11,8 @@ usage: thingy COMMAND [ARGS]
 Read:
   thingy inbox                     to-dos in the Inbox, in Things' order
   thingy today                     to-dos in Today, in Things' order
+  thingy project ID                open to-dos in a project, in Things' order
+  thingy selected                  currently selected to-dos in the Things UI
   thingy search QUERY              open to-dos matching title or notes (case-insensitive)
   thingy containers                areas and open projects (ids for destinations)
   thingy show ID                   one to-do, including its list ("bucket")
@@ -20,6 +22,9 @@ Change (by exact id; run `show` first and check nothing moved):
       KIND: project | area | standalone (DEST_ID "" for standalone)
       WHEN: today | inbox | anytime | someday | YYYY-MM-DD
       DEADLINE: YYYY-MM-DD, none (clear), or "" (keep)
+  thingy move-heading ID PROJECT_ID HEADING
+      Existing heading title; requires THINGY_AUTH_TOKEN from Things URL settings.
+      Returns submission receipt; verify heading placement in Things.
   thingy complete ID
   thingy cancel ID
   thingy append-notes ID TEXT
