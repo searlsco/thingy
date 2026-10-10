@@ -29,6 +29,7 @@ thingy apply ID KIND DEST_ID WHEN DEADLINE
 thingy move-heading ID PROJECT_ID HEADING
 thingy complete ID
 thingy cancel ID
+thingy set-notes ID TEXT
 thingy append-notes ID TEXT
 thingy create TITLE NOTES KIND DEST_ID WHEN
 thingy create-empty TITLE
@@ -47,6 +48,9 @@ commands return JSON; `create-empty` and `configure-created` return the id,
 which can be verified with `show`. The two-step creation commands let a caller
 save the new id before configuring the task, so it can retry configuration
 without creating duplicates.
+
+`set-notes` replaces only the notes of an exact task id and preserves its
+other properties. Pass an empty string to clear the notes.
 
 `project` reads open tasks by exact project id. `selected` reads the tasks
 currently selected in the Things UI, including a selected range. Neither

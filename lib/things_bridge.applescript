@@ -325,6 +325,13 @@ on completeTask(taskId)
 	return my showJson(taskId)
 end completeTask
 
+on setNotes(taskId, replacementNotes)
+	tell application "Things3"
+		set notes of to do id taskId to replacementNotes
+	end tell
+	return my showJson(taskId)
+end setNotes
+
 on appendNotes(taskId, addition)
 	tell application "Things3"
 		set taskRef to to do id taskId
@@ -405,7 +412,7 @@ on cancelTask(taskId)
 end cancelTask
 
 on run argv
-	if (count argv) is 0 then error "usage: thingy inbox|today|project|selected|search|containers|show|move-heading|apply|complete|append-notes|create|create-empty|configure-created|create-project|cancel"
+	if (count argv) is 0 then error "usage: thingy inbox|today|project|selected|search|containers|show|move-heading|apply|complete|set-notes|append-notes|create|create-empty|configure-created|create-project|cancel"
 	set commandName to item 1 of argv
 	if commandName is "inbox" then
 		return my listJson("Inbox")
@@ -434,6 +441,9 @@ on run argv
 	else if commandName is "complete" then
 		if (count argv) is not 2 then error "usage: complete ITEM_ID"
 		return my completeTask(item 2 of argv)
+	else if commandName is "set-notes" then
+		if (count argv) is not 3 then error "usage: set-notes ITEM_ID TEXT"
+		return my setNotes(item 2 of argv, item 3 of argv)
 	else if commandName is "append-notes" then
 		if (count argv) is not 3 then error "usage: append-notes ITEM_ID TEXT"
 		return my appendNotes(item 2 of argv, item 3 of argv)

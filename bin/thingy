@@ -27,6 +27,7 @@ Change (by exact id; run `show` first and check nothing moved):
       Returns submission receipt; verify heading placement in Things.
   thingy complete ID
   thingy cancel ID
+  thingy set-notes ID TEXT          replace notes (empty TEXT clears them)
   thingy append-notes ID TEXT
   thingy create TITLE NOTES KIND DEST_ID WHEN
   thingy create-project TITLE NOTES AREA_ID

@@ -18,6 +18,7 @@ set -euo pipefail
 shift
 case "$1" in
   project) [[ "$#" == 2 && "$2" == 'project id' ]]; printf '%s\n' '[]'; exit 0 ;;
+  set-notes) [[ "$#" == 3 && "$2" == 'task id' && "$3" == "${EXPECTED_NOTES}" ]]; printf '%s\n' '{"id":"task id"}'; exit 0 ;;
   selected) [[ "$#" == 1 ]]; printf '%s\n' '[]'; exit 0 ;;
   move-heading) [[ "$#" == 4 && "$2" == 'task id' && "$3" == 'project id' && "$4" == 'News & café' ]]; printf '%s\n' '{"submitted":true}'; exit 0 ;;
 esac
@@ -36,6 +37,10 @@ cli="$fixture/package with spaces/bin/thingy"
 [[ "$("$cli" project 'project id')" == '[]' ]]
 [[ "$("$cli" selected)" == '[]' ]]
 [[ "$(THINGY_AUTH_TOKEN='not-an-argument' "$cli" move-heading 'task id' 'project id' 'News & café')" == '{"submitted":true}' ]]
+export EXPECTED_NOTES=$'First line\nQuotes " and café'
+[[ "$("$cli" set-notes 'task id' "$EXPECTED_NOTES")" == '{"id":"task id"}' ]]
+export EXPECTED_NOTES=''
+[[ "$("$cli" set-notes 'task id' '')" == '{"id":"task id"}' ]]
 status=0
 FAKE_EXIT=7 "$cli" apply 'task id' standalone '' 2026-10-09 '' > /dev/null || status=$?
 [[ "$status" == 7 ]]
