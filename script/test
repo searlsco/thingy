@@ -5,6 +5,7 @@ root=$PWD
 python3 test/bridge.py
 python3 test/prevalidation.py
 python3 test/heading.py
+python3 test/headings.py
 fixture=$(mktemp -d)
 trap 'rm -rf "$fixture"' EXIT
 mkdir -p "$fixture/bin" "$fixture/package with spaces/bin" "$fixture/package with spaces/lib"
