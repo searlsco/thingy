@@ -26,6 +26,10 @@ thingy search QUERY
 thingy containers
 thingy show ID
 thingy apply ID KIND DEST_ID WHEN DEADLINE
+thingy headings PROJECT_ID
+thingy heading ID
+thingy move-heading-id ID PROJECT_ID HEADING_ID
+thingy install-headings
 thingy move-heading ID PROJECT_ID HEADING
 thingy complete ID
 thingy cancel ID
@@ -67,7 +71,28 @@ The command returns a JSON submission receipt with `submitted: true`, not a
 verified placement. URL handling is asynchronous; invalid authorization can
 be rejected by Things, and a missing heading is silently ignored. Verify the
 heading and result in the Things UI. Heading creation and heading reads are
-not supported by these commands.
+not supported by these AppleScript and URL commands.
+
+`headings PROJECT_ID` reads open headings scoped to the exact project and
+returns `[{"id":"...","name":"..."}]`. `heading ID` reads one task’s current
+heading placement. These commands use Things’ [supported Apple Shortcuts](https://culturedcode.com/things/support/articles/9596775/)
+actions, which expose headings unavailable through AppleScript. Python 3 is
+required. Run `thingy install-headings` once and import both bundled signed
+shortcuts, **Thingy Headings** and **Thingy Heading**, into Shortcuts. The
+bridges make no changes to Things. Keep their names unchanged.
+
+`move-heading-id ID PROJECT_ID HEADING_ID` validates the heading belongs to
+the exact project, submits the existing URL command, and reads the task’s
+heading back through Shortcuts. It returns
+`{"id":"...","project":{"id":"..."},"heading":{"id":"...","name":"..."},"verified":true}`
+only after both project and heading IDs match. It still requires
+`THINGY_AUTH_TOKEN`. Duplicate heading titles within a project are rejected
+because Things’ URL scheme addresses headings by title. Missing bridges,
+invalid authorization, or unconfirmed placement fail with a nonzero exit.
+
+The XML source for each signed bridge is in `shortcuts/`. Changes to those
+files need Shortcuts validation, signing, reimport, and a live read check.
+The new bridges are pending live verification before release.
 
 ## Update
 
