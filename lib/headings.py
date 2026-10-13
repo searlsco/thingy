@@ -29,7 +29,7 @@ def shortcut(name, item_id):
 def heading_list(project_id):
     # Resolve exact project before querying its headings.
     subprocess.run(['osascript', str(ROOT / 'lib/things_bridge.applescript'),
-                    'project', project_id], check=True, stdout=subprocess.DEVNULL)
+                    'project', project_id], check=True, stdout=subprocess.DEVNULL, timeout=30)
     headings = []
     for line in shortcut('Thingy Headings', project_id):
         if not line:
@@ -63,7 +63,7 @@ def move(task_id, project_id, heading_id):
         raise ValueError('heading title is ambiguous in the selected project')
     subprocess.run(['osascript', str(ROOT / 'lib/things_bridge.applescript'),
                     'move-heading', task_id, project_id, chosen['name']], check=True,
-                   stdout=subprocess.DEVNULL)
+                   stdout=subprocess.DEVNULL, timeout=30)
     # URL delivery is asynchronous. A bounded read-after-write verifies placement.
     for attempt in range(3):
         current = placement(task_id)
