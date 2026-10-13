@@ -10,6 +10,7 @@ import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parent.parent
+OUTPUT_MARKER = 'THINGY-HEADINGS-V1'
 
 
 def shortcut(name, item_id):
@@ -22,8 +23,11 @@ def shortcut(name, item_id):
         if result.returncode:
             raise ValueError(f'{name} could not run; import the bundled shortcut with thingy install-headings')
         if not output.exists():
-            return []
-        return output.read_text().rstrip('\n').splitlines()
+            raise ValueError(f'{name} returned no output')
+        rows = output.read_text().rstrip('\n').splitlines()
+        if not rows or rows[0] != OUTPUT_MARKER:
+            raise ValueError(f'{name} returned an invalid output marker; reimport the bundled shortcut')
+        return rows[1:]
 
 
 def heading_list(project_id):
@@ -52,15 +56,24 @@ def placement(task_id):
             'heading': {'id': fields[2], 'name': base64.b64decode(fields[3], validate=True).decode()}}
 
 
-def move(task_id, project_id, heading_id):
+def validate_move(task_id, project_id, heading_id):
     if not os.environ.get('THINGY_AUTH_TOKEN'):
         raise ValueError('move-heading-id requires THINGY_AUTH_TOKEN from Things URL settings')
+    installed = subprocess.run(['shortcuts', 'list'], capture_output=True, text=True, timeout=30)
+    if installed.returncode or not {'Thingy Headings', 'Thingy Heading'}.issubset(set(installed.stdout.splitlines())):
+        raise ValueError('heading moves require both bundled shortcuts; run thingy install-headings')
     headings = heading_list(project_id)
     chosen = next((h for h in headings if h['id'] == heading_id), None)
     if not chosen:
         raise ValueError('heading does not exist in the selected project')
     if sum(h['name'] == chosen['name'] for h in headings) != 1:
         raise ValueError('heading title is ambiguous in the selected project')
+    placement(task_id)
+    return chosen
+
+
+def move(task_id, project_id, heading_id):
+    chosen = validate_move(task_id, project_id, heading_id)
     subprocess.run(['osascript', str(ROOT / 'lib/things_bridge.applescript'),
                     'move-heading', task_id, project_id, chosen['name']], check=True,
                    stdout=subprocess.DEVNULL, timeout=30)
@@ -83,10 +96,13 @@ def main(argv):
         result = heading_list(argv[1])
     elif len(argv) == 2 and argv[0] == 'heading' and argv[1]:
         result = placement(argv[1])
+    elif len(argv) == 4 and argv[0] == 'check-heading-move' and all(argv[1:]):
+        validate_move(*argv[1:])
+        result = {'ready': True}
     elif len(argv) == 4 and argv[0] == 'move-heading-id' and all(argv[1:]):
         result = move(*argv[1:])
     else:
-        raise ValueError('usage: thingy headings PROJECT_ID | heading ID | move-heading-id ID PROJECT_ID HEADING_ID | install-headings')
+        raise ValueError('usage: thingy headings PROJECT_ID | heading ID | check-heading-move ID PROJECT_ID HEADING_ID | move-heading-id ID PROJECT_ID HEADING_ID | install-headings')
     print(json.dumps(result, ensure_ascii=False))
 
 

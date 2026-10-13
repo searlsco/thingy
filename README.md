@@ -28,6 +28,7 @@ thingy show ID
 thingy apply ID KIND DEST_ID WHEN DEADLINE
 thingy headings PROJECT_ID
 thingy heading ID
+thingy check-heading-move ID PROJECT_ID HEADING_ID
 thingy move-heading-id ID PROJECT_ID HEADING_ID
 thingy install-headings
 thingy move-heading ID PROJECT_ID HEADING
@@ -81,7 +82,13 @@ required. Run `thingy install-headings` once and import both bundled signed
 shortcuts, **Thingy Headings** and **Thingy Heading**, into Shortcuts. The
 bridges make no changes to Things. Keep their names unchanged.
 
-`move-heading-id ID PROJECT_ID HEADING_ID` validates the heading belongs to
+`check-heading-move ID PROJECT_ID HEADING_ID` performs a read-only preflight
+for authorization availability, both installed bridges, heading scope and
+title uniqueness, and readable task placement. It returns `{"ready":true}`
+when ready. Run it before changing the task’s project or schedule. Token
+presence is checked; actual URL authorization is confirmed only by a move.
+
+`move-heading-id ID PROJECT_ID HEADING_ID` repeats that preflight and validates the heading belongs to
 the exact project, submits the existing URL command, and reads the task’s
 heading back through Shortcuts. It returns
 `{"id":"...","project":{"id":"..."},"heading":{"id":"...","name":"..."},"verified":true}`

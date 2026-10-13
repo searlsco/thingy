@@ -27,6 +27,8 @@ Change (by exact id; run `show` first and check nothing moved):
   thingy move-heading ID PROJECT_ID HEADING
       Existing heading title; requires THINGY_AUTH_TOKEN from Things URL settings.
       Returns submission receipt; verify heading placement in Things.
+  thingy check-heading-move ID PROJECT_ID HEADING_ID
+      Read-only setup, scope, uniqueness, and task-placement preflight.
   thingy move-heading-id ID PROJECT_ID HEADING_ID
       Validate exact heading, submit URL move, and verify placement.
   thingy install-headings          open bundled signed bridges for import in Shortcuts
@@ -52,6 +54,6 @@ case "${1:-}" in
   "" | -h | --help | help) usage; exit 0 ;;
 esac
 case "${1:-}" in
-  headings | heading | move-heading-id | install-headings) exec python3 "$ROOT/lib/headings.py" "$@" ;;
+  headings | heading | check-heading-move | move-heading-id | install-headings) exec python3 "$ROOT/lib/headings.py" "$@" ;;
 esac
 exec osascript "$BRIDGE" "$@"
