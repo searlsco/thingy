@@ -22,7 +22,7 @@ end run
 '''
 
 def reject(args, token, expected):
-    env = dict(os.environ, THINGY_AUTH_TOKEN=token)
+    env = dict(os.environ, THINGS_AUTH_TOKEN="", THINGY_AUTH_TOKEN=token)
     result = subprocess.run(['/usr/bin/osascript', '-', *args], input=fixture,
                             text=True, capture_output=True, env=env)
     assert result.returncode != 0
@@ -30,7 +30,25 @@ def reject(args, token, expected):
     if token:
         assert token not in result.stdout + result.stderr
 
-reject(['task', 'project', 'News'], '', 'requires THINGY_AUTH_TOKEN')
+reject(['task', 'project', 'News'], '', 'requires THINGS_AUTH_TOKEN')
 reject(['task', 'project', ''], 'secret-token-must-stay-private', 'must not be empty')
 reject(['task', 'project', 'News'], 'secret-token-must-stay-private', 'could not submit heading move')
 print('Passed: missing authorization and empty heading rejection, token-safe dispatch errors.')
+
+# Return the selected token only in this isolated fixture, without dispatching it.
+selection_fixture = fixture.replace('error "dispatch failure: " & authToken', 'return authToken')
+for primary, legacy, expected in [
+    ('primary-token', '', 'primary-token'),
+    ('', 'legacy-token', 'legacy-token'),
+    ('primary-token', 'legacy-token', 'primary-token'),
+    (None, 'legacy-token', 'legacy-token'),
+]:
+    env = dict(os.environ, THINGY_AUTH_TOKEN=legacy)
+    env.pop('THINGS_AUTH_TOKEN', None)
+    if primary is not None:
+        env['THINGS_AUTH_TOKEN'] = primary
+    result = subprocess.run(['/usr/bin/osascript', '-', 'task', 'project', 'News'],
+                            input=selection_fixture, text=True, capture_output=True, env=env)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == expected
+print('Passed: primary token, legacy fallback, empty/unset fallback, and token precedence.')

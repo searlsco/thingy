@@ -60,7 +60,8 @@ does not expose headings.
 `move-heading` uses the [Things URL scheme](https://culturedcode.com/things/support/articles/2803573/)
 to move a task to an existing heading title in an exact project. Enable Things
 URLs in Things Settings → General and obtain the token under Manage. Provide
-it through the `THINGY_AUTH_TOKEN` environment variable. The token is never
+it through the `THINGS_AUTH_TOKEN` environment variable. If it is unset or empty,
+Thingy falls back to `THINGY_AUTH_TOKEN`. The token is never
 passed in process arguments or printed by Thingy.
 
 The command returns a JSON submission receipt with `submitted: true`, not a

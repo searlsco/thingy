@@ -163,8 +163,9 @@ end selectedJson
 on moveHeading(taskId, projectId, headingTitle)
 	if taskId is "" or projectId is "" or headingTitle is "" then error "task id, project id, and heading must not be empty"
 	if (count headingTitle) is greater than 4000 then error "heading must not exceed 4000 characters"
-	set authToken to system attribute "THINGY_AUTH_TOKEN"
-	if authToken is "" then error "move-heading requires THINGY_AUTH_TOKEN from Things URL settings"
+	set authToken to system attribute "THINGS_AUTH_TOKEN"
+	if authToken is "" then set authToken to system attribute "THINGY_AUTH_TOKEN"
+	if authToken is "" then error "move-heading requires THINGS_AUTH_TOKEN (or THINGY_AUTH_TOKEN) from Things URL settings"
 	tell application "Things3"
 		get id of to do id taskId
 		get id of project id projectId
