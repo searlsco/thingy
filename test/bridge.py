@@ -5,6 +5,10 @@ import subprocess
 from pathlib import Path
 
 source = Path('lib/things_bridge.applescript').read_text().split('on bucketFor(')[0]
+bridge = Path('lib/things_bridge.applescript').read_text()
+start = bridge.index('on bucketFromSnapshot(')
+end = bridge.index('end bucketFromSnapshot', start) + len('end bucketFromSnapshot')
+source += bridge[start:end] + '\n'
 # Make the clock deterministic at a month boundary without a production test hook.
 source = source.replace('set parsedDate to current date', '''set parsedDate to current date
     set day of parsedDate to 1
@@ -12,6 +16,13 @@ source = source.replace('set parsedDate to current date', '''set parsedDate to c
     set month of parsedDate to 1
     set day of parsedDate to 31''')
 checks = '''
+set bucketNames to {"Inbox", "Today", "Upcoming", "Someday", "Anytime"}
+set bucketIds to {{"inbox"}, {"today", "shared"}, {"upcoming"}, {"someday"}, {"anytime", "shared"}}
+repeat with testCase in {{"inbox", "Inbox"}, {"today", "Today"}, {"upcoming", "Upcoming"}, {"someday", "Someday"}, {"anytime", "Anytime"}, {"shared", "Today"}}
+    if my bucketFromSnapshot(item 1 of testCase, bucketNames, bucketIds) is not item 2 of testCase then error "incorrect bucket"
+end repeat
+if my bucketFromSnapshot("absent", bucketNames, bucketIds) is not missing value then error "absent task matched"
+if my bucketFromSnapshot("absent", {}, {}) is not missing value then error "empty snapshot matched"
 set textValue to "Quotes " & quote & " slash " & character id 92 & return & linefeed & tab
 repeat with codePoint from 0 to 31
     set textValue to textValue & character id codePoint
@@ -45,3 +56,5 @@ assert heading_url.scheme == 'things' and heading_url.path == '/update'
 assert parse_qs(heading_url.query) == {'id': ['task & id'], 'list-id': ['project? id'], 'heading': ['News + café/日本'], 'auth-token': ['secret&?=token']}
 print('Passed: URL parameter isolation and Unicode encoding.')
 print('Passed: JSON control-character round trip, month-boundary dates, invalid dates.')
+
+print('Passed: snapshot membership, precedence, absent tasks, empty lists.')

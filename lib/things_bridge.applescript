@@ -106,7 +106,11 @@ on taskJson(taskRef, taskBucket)
 		end try
 	end tell
 
-	if taskBucket is "" then set taskBucket to my bucketFor(taskId)
+	if taskBucket is missing value then
+		set taskBucket to ""
+	else if taskBucket is "" then
+		set taskBucket to my bucketFor(taskId)
+	end if
 	return "{\"id\":" & my jsonString(taskId) & ¬
 		",\"status\":" & my jsonString(taskStatus) & ¬
 		",\"title\":" & my jsonString(taskName) & ¬
@@ -133,12 +137,33 @@ on listJson(listName)
 	return resultJson & "]"
 end listJson
 
+-- A batch must not repeat expensive list filters for every task.
+on bucketFromSnapshot(taskId, bucketNames, bucketIds)
+	repeat with bucketIndex from 1 to count bucketNames
+		if item bucketIndex of bucketIds contains taskId then return item bucketIndex of bucketNames
+	end repeat
+	return missing value
+end bucketFromSnapshot
+
 on tasksJson(taskRefs)
+	if (count taskRefs) is 0 then return "[]"
+	if (count taskRefs) is 1 then return "[" & my taskJson(item 1 of taskRefs, "") & "]"
+	set bucketNames to {"Inbox", "Today", "Upcoming", "Someday", "Anytime"}
+	set bucketIds to {}
+	tell application "Things3"
+		repeat with bucketName in bucketNames
+			set end of bucketIds to id of to dos of list (bucketName as text)
+		end repeat
+	end tell
 	set resultJson to "["
 	set needsComma to false
 	repeat with taskRef in taskRefs
+		tell application "Things3"
+			set taskId to id of taskRef
+		end tell
+		set taskBucket to my bucketFromSnapshot(taskId, bucketNames, bucketIds)
 		if needsComma then set resultJson to resultJson & ","
-		set resultJson to resultJson & my taskJson(taskRef, "")
+		set resultJson to resultJson & my taskJson(taskRef, taskBucket)
 		set needsComma to true
 	end repeat
 	return resultJson & "]"
@@ -187,14 +212,7 @@ on searchJson(queryText)
 			set matchedTasks to every to do whose status is open and (name contains queryText or notes contains queryText)
 		end ignoring
 	end tell
-	set resultJson to "["
-	set needsComma to false
-	repeat with taskRef in matchedTasks
-		if needsComma then set resultJson to resultJson & ","
-		set resultJson to resultJson & my taskJson(taskRef, "")
-		set needsComma to true
-	end repeat
-	return resultJson & "]"
+	return my tasksJson(matchedTasks)
 end searchJson
 
 on containersJson()
